@@ -42,9 +42,18 @@ function init(Survey) {
     activatedByChanged: function(activatedBy) {
       Survey.JsonObject.metaData.addClass("signaturepad", [], null, "empty");
       Survey.JsonObject.metaData.addProperties("signaturepad", [
-        { name: "allowClear:boolean", default: true },
-        { name: "width:number", default: 300 },
-        { name: "height:number", default: 200 }
+        {
+          name: "allowClear:boolean",
+          default: true
+        },
+        {
+          name: "width:number",
+          default: 300
+        },
+        {
+          name: "height:number",
+          default: 200
+        }
       ]);
     },
     afterRender: function(question, el) {
@@ -54,22 +63,43 @@ function init(Survey) {
       if (question.isReadOnly) {
         signaturePad.off();
       }
+
+      question.readOnlyChangedCallback = function() {
+        if (question.isReadOnly) {
+          signaturePad.off();
+          var clearBtn = document.querySelector(".sjs_sp_clear");
+          clearBtn && (clearBtn.disabled = true);
+        } else {
+          signaturePad.on();
+          var clearBtn = document.querySelector(".sjs_sp_clear");
+          clearBtn && (clearBtn.disabled = false);
+        }
+      };
+
       signaturePad.penColor = rootWidget.penColor;
       signaturePad.onEnd = function() {
         var data = signaturePad.toDataURL();
         question.value = data;
       };
       var updateValueHandler = function() {
+        var data = question.value;
         canvas.width = question.width;
         canvas.height = question.height;
         resizeCanvas(canvas);
         signaturePad.fromDataURL(
-          question.value || "data:image/gif;base64,R0lGODlhAQABAIAAAP"
+          data || "data:image/gif;base64,R0lGODlhAQABAIAAAP"
         );
       };
       question.valueChangedCallback = updateValueHandler;
       updateValueHandler();
       question.signaturePad = signaturePad;
+      var propertyChangedHandler = function(sender, options) {
+        if (options.name === "width" || options.name === "height") {
+          updateValueHandler();
+        }
+      };
+      question.onPropertyChanged.add(propertyChangedHandler);
+      question.signaturePad.propertyChangedHandler = propertyChangedHandler;
       var buttonEl = el.getElementsByTagName("button")[0];
       if (question.allowClear && !question.isReadOnly) {
         buttonEl.onclick = function() {
@@ -81,9 +111,14 @@ function init(Survey) {
     },
     willUnmount: function(question, el) {
       if (question.signaturePad) {
+        question.onPropertyChanged.remove(
+          question.signaturePad.propertyChangedHandler
+        );
         question.signaturePad.off();
       }
+      question.readOnlyChangedCallback = null;
       question.signaturePad = null;
+      question.readOnlyChangedCallback = null;
     }
   };
 

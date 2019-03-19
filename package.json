@@ -1,10 +1,12 @@
 {
   "name": "surveyjs-widgets",
-  "version": "1.0.16",
+  "version": "1.0.50",
   "scripts": {
     "start": "npm run build && live-server",
+    "watch": "webpack --env.buildType dev --watch",
     "prebuild": "webpack --env.buildType dev",
-    "build": "webpack --env.buildType prod"
+    "build": "webpack --env.buildType prod",
+    "release": "standard-version --message \"Release: %s\""
   },
   "private": true,
   "devDependencies": {
@@ -15,7 +17,6 @@
     "friendly-errors-webpack-plugin": "^1.6.1",
     "generate-json-webpack-plugin": "^0.2.2",
     "icheck": "^1.0.2",
-    "image-picker": "^0.3.1",
     "inputmask": "^3.3.10",
     "jquery": "^3.2.1",
     "jquery-bar-rating": "^1.2.2",
@@ -27,11 +28,12 @@
     "select2": "^4.0.4",
     "signature_pad": "^2.3.2",
     "sortablejs": "^1.6.1",
-    "survey-angular": "^0.12.31",
-    "survey-jquery": "^0.12.31",
-    "survey-knockout": "^0.12.31",
-    "survey-react": "^0.12.31",
-    "survey-vue": "^0.12.31",
+    "standard-version": "4.0.0",
+    "survey-angular": "^1.0.18",
+    "survey-jquery": "^1.0.18",
+    "survey-knockout": "^1.0.18",
+    "survey-react": "^1.0.18",
+    "survey-vue": "^1.0.18",
     "virtual-module-webpack-plugin": "^0.3.0",
     "webpack": "^3.6.0"
   }

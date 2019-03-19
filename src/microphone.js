@@ -14,8 +14,8 @@ function init(Survey) {
     },
     htmlTemplate:
 		"<div>"+
-		"<button type='button'  title='Record'><i class='fa fa-microphone' aria-hidden='true'></i></button>"+ 
-		"&nbsp;<button type='button' title='Save'><i class='fa fa-cloud' aria-hidden='true'></i></button>"+
+		"<button type='button'  title='Record'>НАЧАТЬ ОТВЕТ</button>"+ 
+		"&nbsp;<button type='button' title='Save'>ЗАКОНЧИТЬ ОТВЕТ</button>"+
 		"&nbsp;<audio style='"+
 		"position:relative; "+
 		"top:16px; "+
@@ -30,6 +30,12 @@ function init(Survey) {
 		"</div>",
     activatedByChanged: function(activatedBy) {
       Survey.JsonObject.metaData.addClass("microphone", [], null, "empty");
+	  Survey.JsonObject.metaData.addProperties("microphone", [
+        {
+          name: "maxRecordTime:number",
+          default: 0
+        }
+      ]);
     },
 	
     afterRender: function(question, el) {
@@ -37,7 +43,14 @@ function init(Survey) {
 	  var buttonStartEl = el.getElementsByTagName("button")[0];
 	  var buttonStopEl = el.getElementsByTagName("button")[1];
 	  var audioEl = el.getElementsByTagName("audio")[0];
-	 
+	   var propertyChangedHandler = function(sender, options) {
+        /*if (options.name === "width" || options.name === "height") {
+          updateValueHandler();
+        }*/
+		
+		console.log("Options: " +options.name + " cahanged ");
+      };
+      question.onPropertyChanged.add(propertyChangedHandler);
 //////////  RecordRTC logic	
 	  
 	  var successCallback = function(stream) {
@@ -54,6 +67,10 @@ function init(Survey) {
 		question.survey.recordRTC = RecordRTC(question.survey.mystream, options);
 		if(typeof question.survey.recordRTC != "undefined"){
 			console.log("startRecording");
+			if(question.maxRecordTime >0){
+				console.log("start timer for " + question.maxRecordTime + " second");
+				setTimeout(stopRecording, 1000 * question.maxRecordTime);
+			}
 			question.survey.recordRTC.startRecording();
 		}
 	  };
@@ -83,6 +100,8 @@ function init(Survey) {
 	  };
 
       var startRecording=function() {
+		  buttonStartEl.style.opacity = 0.2;
+		  buttonStopEl.style.opacity = 1;
 		  
 		 // erase previous data 
 		 question.value=undefined;
@@ -109,6 +128,8 @@ function init(Survey) {
      };
 
 	  var stopRecording=function() {
+		  buttonStartEl.style.opacity = 1;
+		  buttonStopEl.style.opacity = 0.2;
 		  console.log("stopRecording");
 		  if(typeof question.survey.recordRTC != "undefined"){
 			question.survey.recordRTC.stopRecording(processAudio.bind(this));
@@ -125,19 +146,24 @@ function init(Survey) {
 	  
 	  if (!question.isReadOnly) {
         buttonStartEl.onclick = startRecording;
+		
       } else {
         buttonStartEl.parentNode.removeChild(buttonStartEl);
       }
 	  
 	  if (!question.isReadOnly) {
         buttonStopEl.onclick = stopRecording;
+		buttonStopEl.style.opacity = 0.2;
       } else {
         buttonStopEl.parentNode.removeChild(buttonStopEl);
       }
 	  
-	  
-      audioEl.src=question.value
-      
+	   if (question.isReadOnly) {
+		  audioEl.src=question.value
+	   }else{
+		  audioEl.parentNode.removeChild(audioEl);
+	   }
+	   
       var updateValueHandler = function() {
         
       };

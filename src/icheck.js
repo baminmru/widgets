@@ -4,7 +4,7 @@ function init(Survey, $) {
     className: "iradio_square-blue",
     name: "icheck",
     widgetIsLoaded: function() {
-      return !!$.fn.iCheck;
+      return typeof $ == "function" && !!$.fn.iCheck;
     },
     isFit: function(question) {
       var t = question.getType();
@@ -14,7 +14,9 @@ function init(Survey, $) {
     afterRender: function(question, el) {
       var rootWidget = this;
       var $el = $(el);
-      $el.find("input").data({ iCheck: undefined });
+      $el.find("input").data({
+        iCheck: undefined
+      });
 
       $el.find("input").iCheck({
         checkboxClass: rootWidget.className,
@@ -34,7 +36,7 @@ function init(Survey, $) {
             if (row.value) {
               $(el)
                 .find(
-                  "input[name='" + row.fullName + "'][value=" + row.value + "]"
+                  "input[name='" + row.fullName + "'][value='" + row.value + "']"
                 )
                 .iCheck("check");
             }
@@ -50,7 +52,10 @@ function init(Survey, $) {
           });
         } else if (question.getType() === "checkbox") {
           var oldValue = question.value || [];
-          question.value = oldValue.concat([event.target.value]);
+          var index = oldValue.indexOf(event.target.value);
+          if (index === -1) {
+            question.value = oldValue.concat([event.target.value]);
+          }
         } else {
           question.value = event.target.value;
         }
@@ -60,7 +65,8 @@ function init(Survey, $) {
           var oldValue = question.value || [];
           var index = oldValue.indexOf(event.target.value);
           if (index >= 0) {
-            question.value = oldValue.splice(index, 1);
+            oldValue.splice(index, 1);
+            question.value = oldValue;
           }
         }
       });

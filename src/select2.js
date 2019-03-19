@@ -29,12 +29,21 @@ function init(Survey, $) {
           default: "standard",
           choices: ["standard", "select2"]
         });
+        Survey.JsonObject.metaData.addProperty("dropdown", {
+          name: "select2Config",
+          default: null
+        });
       }
       if (activatedBy == "customtype") {
         Survey.JsonObject.metaData.addClass("select2", [], null, "dropdown");
+        Survey.JsonObject.metaData.addProperty("select2", {
+          name: "select2Config",
+          default: null
+        });
       }
     },
     afterRender: function(question, el) {
+      var settings = question.select2Config;
       var $el = $(el).is("select") ? $(el) : $(el).find("select");
       var othersEl = document.createElement("input");
       othersEl.type = "text";
@@ -45,9 +54,7 @@ function init(Survey, $) {
         .parent()
         .get(0)
         .appendChild(othersEl);
-      var widget = $el.select2({
-        theme: "classic"
-      });
+
       var updateValueHandler = function() {
         $el.val(question.value).trigger("change");
         othersEl.style.display = !question.isOtherSelected ? "none" : "";
@@ -60,18 +67,47 @@ function init(Survey, $) {
       };
       var updateChoices = function() {
         $el.select2().empty();
-        $el.select2({
-          data: question.visibleChoices.map(function(choice) {
-            return { id: choice.value, text: choice.text };
-          })
-        });
+
+        if (settings) {
+          if (settings.ajax) {
+            $el.select2(settings);
+          } else {
+            settings.data = question.visibleChoices.map(function(choice) {
+              return {
+                id: choice.value,
+                text: choice.text
+              };
+            });
+            $el.select2(settings);
+          }
+        } else {
+          $el.select2({
+            theme: "classic",
+            disabled: question.isReadOnly,
+            data: question.visibleChoices.map(function(choice) {
+              return {
+                id: choice.value,
+                text: choice.text
+              };
+            })
+          });
+        }
+
         updateValueHandler();
         updateCommentHandler();
       };
+
+      question.readOnlyChangedCallback = function() {
+        $el.prop("disabled", question.isReadOnly);
+      };
+
       question.choicesChangedCallback = updateChoices;
       updateChoices();
       $el.on("select2:select", function(e) {
         question.value = e.target.value;
+      });
+      $el.on("select2:unselecting", function(e) {
+        question.value = null;
       });
       othersEl.onchange = othersElChanged;
       question.valueChangedCallback = updateValueHandler;
@@ -84,6 +120,7 @@ function init(Survey, $) {
         .find("select")
         .off("select2:select")
         .select2("destroy");
+      question.readOnlyChangedCallback = null;
     }
   };
 

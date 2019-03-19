@@ -4,12 +4,14 @@ function init(Survey) {
   var widget = {
     name: "sortablelist",
     title: "Sortable list",
-    iconName: "icon-sortablelist",
+    iconName: "icon-sortablejs",
     widgetIsLoaded: function() {
       return typeof Sortable != "undefined";
     },
     defaultJSON: { choices: ["Item 1", "Item 2", "Item 3"] },
-    areaStyle: "border: 1px solid #1ab394; width:100%; min-height:50px",
+    rootStyle: "width:100%:",
+    areaStyle:
+      "border: 1px solid #1ab394; width:100%; min-height:50px; margin-top:10px;",
     itemStyle: "background-color:#1ab394;color:#fff;margin:5px;padding:10px;",
     isFit: function(question) {
       return question.getType() === "sortablelist";
@@ -29,18 +31,35 @@ function init(Survey) {
         name: "emptyText",
         default: "Move items here."
       });
+      Survey.JsonObject.metaData.addProperty("sortablelist", {
+        name: "useDefaultTheme",
+        default: true
+      });
     },
     afterRender: function(question, el) {
-      var rootWidget = this;
-      el.style.width = "100%";
+      var self = this;
+
+      if (!question.useDefaultTheme) {
+        self.rootStyle = "";
+        self.itemStyle = "";
+        self.areaStyle = "";
+      }
+      el.style.cssText = self.rootStyle;
+      el.className = "sjs-sortablejs-root";
+      var source, result;
       var resultEl = document.createElement("div");
       var emptyEl = document.createElement("span");
       var sourceEl = document.createElement("div");
-      resultEl.style.cssText = rootWidget.areaStyle;
+
+      resultEl.style.cssText = self.areaStyle;
+      resultEl.className = "sjs-sortablejs-result";
+
       emptyEl.innerHTML = question.emptyText;
       resultEl.appendChild(emptyEl);
-      sourceEl.style.cssText = rootWidget.areaStyle;
-      sourceEl.style.marginTop = "10px";
+
+      sourceEl.style.cssText = self.areaStyle;
+      sourceEl.className = "sjs-sortablejs-source";
+
       el.appendChild(resultEl);
       el.appendChild(sourceEl);
       var hasValueInResults = function(val) {
@@ -51,31 +70,61 @@ function init(Survey) {
         }
         return false;
       };
+      var addChoiceToWidget = function(choice, inResults) {
+        var srcEl = inResults ? resultEl : sourceEl;
+        var newEl = document.createElement("div");
+        newEl.innerHTML =
+          "<div class='sjs-sortablejs-item' style='" +
+          self.itemStyle +
+          "'>" +
+          choice.text +
+          "</div>";
+        newEl.dataset["value"] = choice.value;
+        srcEl.appendChild(newEl);
+      };
+      var getChoicesNotInResults = function() {
+        var res = [];
+        question.activeChoices.forEach(function(choice) {
+          if (!hasValueInResults(choice.value)) {
+            res.push(choice);
+          }
+        });
+        return res;
+      };
+      var getChoicesInResults = function() {
+        var res = [];
+        var val = question.value;
+        if (!Array.isArray(val)) return res;
+        for (var i = 0; i < val.length; i++) {
+          var item = Survey.ItemValue.getItemByValue(
+            question.activeChoices,
+            val[i]
+          );
+          if (!!item) {
+            res.push(item);
+          }
+        }
+        return res;
+      };
       var isUpdatingQuestionValue = false;
       var updateValueHandler = function() {
         if (isUpdatingQuestionValue) return;
         resultEl.innerHTML = "";
         resultEl.appendChild(emptyEl);
         sourceEl.innerHTML = "";
-        var wasInResults = false;
-        question.activeChoices.forEach(function(choice) {
-          var inResutls = hasValueInResults(choice.value);
-          wasInResults = wasInResults || inResutls;
-          var srcEl = inResutls ? resultEl : sourceEl;
-          var newEl = document.createElement("div");
-          newEl.innerHTML =
-            "<div style='" +
-            rootWidget.itemStyle +
-            "'>" +
-            choice.text +
-            "</div>";
-          newEl.dataset["value"] = choice.value;
-          srcEl.appendChild(newEl);
+        var notInResults = getChoicesNotInResults();
+        var inResults = getChoicesInResults();
+        emptyEl.style.display = inResults.length > 0 ? "none" : "";
+        inResults.forEach(function(choice) {
+          addChoiceToWidget(choice, true);
         });
-        emptyEl.style.display = wasInResults ? "none" : "";
+        notInResults.forEach(function(choice) {
+          addChoiceToWidget(choice, false);
+        });
       };
-      question.resultEl = Sortable.create(resultEl, {
+      result = question.resultEl = Sortable.create(resultEl, {
         animation: 150,
+        disabled: question.isReadOnly,
         group: question.name,
         onSort: function(evt) {
           var result = [];
@@ -94,16 +143,27 @@ function init(Survey) {
           isUpdatingQuestionValue = false;
         }
       });
-      question.sourceEl = Sortable.create(sourceEl, {
+      source = question.sourceEl = Sortable.create(sourceEl, {
         animation: 150,
+        disabled: question.isReadOnly,
         group: question.name
       });
       question.valueChangedCallback = updateValueHandler;
+      question.readOnlyChangedCallback = function() {
+        if (question.isReadOnly) {
+          result.options.disabled = true;
+          source.options.disabled = true;
+        } else {
+          result.options.disabled = false;
+          source.options.disabled = false;
+        }
+      };
       updateValueHandler();
     },
     willUnmount: function(question, el) {
       question.resultEl.destroy();
       question.sourceEl.destroy();
+      question.readOnlyChangedCallback = null;
     }
   };
 

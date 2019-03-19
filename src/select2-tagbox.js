@@ -7,7 +7,9 @@ function init(Survey, $) {
     widgetIsLoaded: function() {
       return typeof $ == "function" && !!$.fn.select2;
     },
-    defaultJSON: { choices: ["Item 1", "Item 2", "Item 3"] },
+    defaultJSON: {
+      choices: ["Item 1", "Item 2", "Item 3"]
+    },
     htmlTemplate: "<select multiple='multiple' style='width: 100%;'></select>",
     isFit: function(question) {
       return question.getType() === "tagbox";
@@ -15,15 +17,26 @@ function init(Survey, $) {
     activatedByChanged: function(activatedBy) {
       Survey.JsonObject.metaData.addClass(
         "tagbox",
-        [{ name: "hasOther", visible: false }],
+        [
+          {
+            name: "hasOther",
+            visible: false
+          }
+        ],
         null,
         "checkbox"
       );
+      Survey.JsonObject.metaData.addProperty("tagbox", {
+        name: "select2Config",
+        default: null
+      });
     },
     afterRender: function(question, el) {
+      var settings = question.select2Config;
       var $el = $(el).is("select") ? $(el) : $(el).find("select");
       $el.select2({
         tags: "true",
+        disabled: question.isReadOnly,
         theme: "classic"
       });
       var updateValueHandler = function() {
@@ -31,13 +44,37 @@ function init(Survey, $) {
       };
       var updateChoices = function() {
         $el.select2().empty();
-        $el.select2({
-          data: question.visibleChoices.map(function(choice) {
-            return { id: choice.value, text: choice.text };
-          })
-        });
+
+        if (settings) {
+          if (settings.ajax) {
+            $el.select2(settings);
+          } else {
+            settings.data = question.visibleChoices.map(function(choice) {
+              return {
+                id: choice.value,
+                text: choice.text
+              };
+            });
+            $el.select2(settings);
+          }
+        } else {
+          $el.select2({
+            data: question.visibleChoices.map(function(choice) {
+              return {
+                id: choice.value,
+                text: choice.text
+              };
+            })
+          });
+        }
+
         updateValueHandler();
       };
+
+      question.readOnlyChangedCallback = function() {
+        $el.prop("disabled", question.isReadOnly);
+      };
+
       question.choicesChangedCallback = updateChoices;
       question.valueChangedCallback = updateValueHandler;
       $el.on("select2:select", function(e) {
@@ -58,6 +95,7 @@ function init(Survey, $) {
         .find("select")
         .off("select2:select")
         .select2("destroy");
+      question.readOnlyChangedCallback = null;
     }
   };
 

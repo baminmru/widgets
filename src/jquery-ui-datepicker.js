@@ -5,13 +5,12 @@ function init(Survey, $) {
     title: "Date picker",
     iconName: "icon-datepicker",
     widgetIsLoaded: function() {
-      return !!$.fn.datepicker;
+      return !!$ && !!$.fn.datepicker;
     },
     isFit: function(question) {
       return question.getType() === "datepicker";
     },
-    htmlTemplate:
-      "<input class='form-control widget-datepicker' type='text' style='width: 100%;'>",
+    htmlTemplate: "<input class='form-control widget-datepicker' type='text'>",
     activatedByChanged: function(activatedBy) {
       Survey.JsonObject.metaData.addClass(
         "datepicker",
@@ -24,35 +23,53 @@ function init(Survey, $) {
         "text"
       );
       Survey.JsonObject.metaData.addProperty("datepicker", {
-        name: "dateFormat",
-        default: "mm/dd/yy",
-        choices: [
-          "mm/dd/yy",
-          "yy-mm-dd",
-          "d M, y",
-          "d MM, y",
-          "DD, d MM, yy",
-          "'day' d 'of' MM 'in the year' yy"
-        ]
+        name: "dateFormat"
+      });
+      Survey.JsonObject.metaData.addProperty("datepicker", {
+        name: "config",
+        default: null
       });
     },
     afterRender: function(question, el) {
       var $el = $(el).is(".widget-datepicker")
         ? $(el)
         : $(el).find(".widget-datepicker");
-      var pickerWidget = $el.datepicker({
-        dateFormat: question.dateFormat,
-        option: {
+      var config = question.config || {};
+      if (!!question.placeHolder) {
+        $el.attr("placeholder", question.placeHolder);
+      }
+      if (config.dateFormat === undefined) {
+        config.dateFormat = !!question.dateFormat
+          ? question.dateFormat
+          : undefined;
+      }
+      if (config.option === undefined) {
+        config.option = {
           minDate: null,
           maxDate: null
-        },
-        onSelect: function(dateText) {
+        };
+      }
+      if (config.onSelect === undefined) {
+        config.onSelect = function(dateText) {
           question.value = dateText;
+        };
+      }
+      var pickerWidget = $el.datepicker(config);
+
+      $el.keyup(function(e) {
+        if (e.keyCode == 8 || e.keyCode == 46) {
+          $.datepicker._clearDate(this);
         }
       });
+
+      question.readOnlyChangedCallback = function() {
+        $el.datepicker("option", "disabled", question.isReadOnly);
+      };
+      question.readOnlyChangedCallback();
+
       question.valueChangedCallback = function() {
         if (question.value) {
-          pickerWidget.datepicker("setDate", new Date(question.value));
+          pickerWidget.datepicker("setDate", question.value);
         } else {
           pickerWidget.datepicker("setDate", null);
         }
