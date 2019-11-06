@@ -3,112 +3,109 @@ import RecordRTC from "recordrtc";
 function init(Survey) {
   var widget = {
 	
-    name: "microphone",
-    title: "Microphone",
-    iconName: "icon-microphone",
+    name: "camera",
+    title: "Camera",
+    iconName: "icon-camera",
     widgetIsLoaded: function() {
       return typeof RecordRTC != "undefined";
     },
     isFit: function(question) {
-      return question.getType() === "microphone";
+      return question.getType() === "camera";
     },
     htmlTemplate:
 		"<div>"+
 		"<button type='button'  title='Record'>НАЧАТЬ ОТВЕТ</button>"+ 
 		"&nbsp;<button type='button' title='Save'>ЗАКОНЧИТЬ ОТВЕТ</button>"+
-		"&nbsp;<audio style='"+
+		"&nbsp;<video style='"+
 		"position:relative; "+
 		"top:16px; "+
 		"left:10px; "+
-		"height:35px;"+
+		"height:480px;"+
+		"width:640px;"+
 		"-moz-box-shadow: 2px 2px 4px 0px #006773;"+
 		"-webkit-box-shadow:  2px 2px 4px 0px #006773;"+
 		"box-shadow: 2px 2px 4px 0px #006773;"+
 		"' "+
 		"controls='true' >"+
-		"</audio>"+
+		"</video>"+
 		"</div>",
     activatedByChanged: function(activatedBy) {
-      Survey.JsonObject.metaData.addClass("microphone", [], null, "empty");
-	  Survey.JsonObject.metaData.addProperties("microphone", [
+      Survey.JsonObject.metaData.addClass("camera", [], null, "empty");
+	  Survey.JsonObject.metaData.addProperties("camera", [
         {
           name: "maxRecordTime:number",
           default: 0
         }
       ]);
-    },
-	
+    }
+	,
     afterRender: function(question, el) {
       var rootWidget = this;
 	  var buttonStartEl = el.getElementsByTagName("button")[0];
 	  var buttonStopEl = el.getElementsByTagName("button")[1];
-	  var audioEl = el.getElementsByTagName("audio")[0];
-
+	  var videoEl = el.getElementsByTagName("video")[0];
+	 
+	 
 //////////  RecordRTC logic	
 	  
 	  var successCallback = function(stream) {
 		var options={
-			type: 'audio',
-			recorderType: RecordRTC.StereoAudioRecorder,
-			mimeType: 'audio/wav',
-			//audioBitsPerSecond: 16000 * 16 ,
-			sampleRate: 44100 , 
-			bufferSize: 8192, 
-			//leftChannel :true,
-			numberOfAudioChannels: 2
+			type: 'video',
+			disableLogs: true, 
+			numberOfAudioChannels: 1
 		};  
 		console.log("successCallback");
 		question.survey.mystream = stream;
 		question.survey.recordRTC = RecordRTC(question.survey.mystream, options);
 		if(typeof question.survey.recordRTC != "undefined"){
 			console.log("startRecording");
+			question.survey.recordRTC.startRecording();
 			if(question.maxRecordTime >0){
 				console.log("start timer for " + question.maxRecordTime + " second");
 				question.timeoutid=setTimeout(stopRecording, 1000 * question.maxRecordTime);
 			}else{
 				question.timeoutid=0;
 			}
-			question.survey.recordRTC.startRecording();
 		}
 	  };
 
 	  var errorCallback=function() {
-		alert('No microphone');
+		alert('No camera');
 		question.survey.recordRTC=undefined;
 		question.survey.mystream=undefined;
 	  };
 
-	  var processAudio= function(audioVideoWebMURL) {
-		console.log("processAudio");
-		
+	  var processVideo= function(VideoVideoWebMURL) {
+		console.log("processVideo");
 		if(typeof question.survey.recordRTC != "undefined"){
 			var recordedBlob = question.survey.recordRTC.getBlob();
 			
 			var fileReader = new FileReader();
 			fileReader.onload = function(event){
-				var dataUri = event.target.result;
-				question.value = dataUri;
-				console.log("getBlob.dataUri: " +question.value.substring(0,255));
-			 
-				console.log("cleaning");
-				question.survey.recordRTC=undefined;
-				if(typeof question.survey.mystream != "undefined"){
-						question.survey.mystream.getAudioTracks().forEach(function(track) {
-						track.stop();
-						}
-						);
-					}
-				question.survey.mystream=undefined;
+			  var dataUri = event.target.result;
+			  question.value = dataUri;
+			  console.log("getBlob.dataUri: " +question.value.substring(0,255));
+			  //videoEl.src=dataUri;
+			  
+			  console.log("cleaning");
+			  question.survey.recordRTC=undefined;
+			  
+			  if(typeof question.survey.mystream != "undefined"){
+				question.survey.mystream.getVideoTracks().forEach(function(track) {
+				track.stop();
+				}
+				);
+			}
+			  question.survey.mystream=undefined;
 			};
+			fileReader.readAsDataURL(recordedBlob);
 		}else{
-			console.log("Error. RecordRTC is undefined at process Audio!");
+			console.log("Error. RecordRTC is undefined at process Video!");
 		}
-        fileReader.readAsDataURL(recordedBlob);
 	  };
-	  
-	  
-	  
+
       var startRecording=function() {
+		    
 		  buttonStartEl.style.opacity = 0.2;
 		  buttonStopEl.style.opacity = 1;
 		  
@@ -119,7 +116,7 @@ function init(Survey) {
 		if(typeof question.survey.recordRTC != "undefined"){
 			question.survey.recordRTC.stopRecording(doNothingHandler);
 			if(typeof question.survey.mystream != "undefined"){
-				question.survey.mystream.getAudioTracks().forEach(function(track) {
+				question.survey.mystream.getVideoTracks().forEach(function(track) {
 				track.stop();
 				}
 				);
@@ -127,7 +124,7 @@ function init(Survey) {
 		}
 			 
 		var mediaConstraints = {
-		  video: false,
+		  video: true,
 		  audio: true
 		};
 		
@@ -137,9 +134,9 @@ function init(Survey) {
      };
 
 	  var stopRecording=function() {
+		  
 		  buttonStartEl.style.opacity = 1;
 		  buttonStopEl.style.opacity = 0.2;
-		  
 		  if(question.timeoutid!=0){
 			  console.log("ClearTimeOut of max record time");
 			  clearTimeout(question.timeoutid);
@@ -147,10 +144,10 @@ function init(Survey) {
 		  }
 		  console.log("stopRecording");
 		  if(typeof question.survey.recordRTC != "undefined"){
-			question.survey.recordRTC.stopRecording(processAudio.bind(this));
+			question.survey.recordRTC.stopRecording(processVideo.bind(this));
 			if(typeof question.survey.mystream != "undefined"){
-				question.survey.mystream.getAudioTracks().forEach(function(track) {
-				track.stop();
+				question.survey.mystream.getVideoTracks().forEach(function(track) {
+					track.stop();
 				}
 				);
 			}
@@ -174,11 +171,11 @@ function init(Survey) {
       }
 	  
 	   if (question.isReadOnly) {
-		  audioEl.src=question.value
+		  videoEl.src=question.value
 	   }else{
-		  audioEl.parentNode.removeChild(audioEl);
+		  videoEl.parentNode.removeChild(videoEl);
 	   }
-	   
+      
       var updateValueHandler = function() {
         
       };
@@ -193,11 +190,11 @@ function init(Survey) {
      
     },
     willUnmount: function(question, el) {
-      console.log("unmount microphone no record ");
+      console.log("unmount camera no record ");
       if(typeof question.survey.recordRTC != "undefined"){
 			question.survey.recordRTC.stopRecording(doNothingHandler);
 			if(typeof question.survey.mystream != "undefined"){
-				question.survey.mystream.getAudioTracks().forEach(function(track) {
+				question.survey.mystream.getVideoTracks().forEach(function(track) {
 				track.stop();
 				});
 			}
